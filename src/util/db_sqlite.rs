@@ -2,6 +2,39 @@ use bytesize::ByteSize;
 use rusqlite::{params, Connection};
 
 use crate::{args::ARGS, pasta::PastaFile, Pasta};
+fn ensure_title_column(conn: &Connection) {
+    // If table doesn't exist yet, do nothing.
+    // (CREATE TABLE calls will create it with title included.)
+    let table_exists: bool = conn
+        .query_row(
+            "SELECT EXISTS(
+                SELECT 1 FROM sqlite_master
+                WHERE type='table' AND name='pasta'
+            )",
+            [],
+            |row| row.get(0),
+        )
+        .expect("Failed to check if pasta table exists!");
+
+    if !table_exists {
+        return;
+    }
+
+    let mut stmt = conn
+        .prepare("PRAGMA table_info(pasta)")
+        .expect("Failed to query SQLite schema!");
+
+    let mut rows = stmt.query([]).expect("Failed to read SQLite schema!");
+    while let Some(row) = rows.next().expect("Failed to iterate SQLite schema!") {
+        let name: String = row.get(1).expect("Failed to read column name!");
+        if name == "title" {
+            return;
+        }
+    }
+
+    conn.execute("ALTER TABLE pasta ADD COLUMN title TEXT", [])
+        .expect("Failed to add title column!");
+}
 
 pub fn read_all() -> Vec<Pasta> {
     select_all_from_db()
@@ -14,20 +47,17 @@ pub fn update_all(pastas: &[Pasta]) {
 pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
     let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
         .expect("Failed to open SQLite database!");
+        
+     conn.execute("DROP TABLE IF EXISTS pasta;", params![])
+         .expect("Failed to drop SQLite table for Pasta!");
 
-    conn.execute(
-        "
-        DROP TABLE IF EXISTS pasta;
-        );",
-        params![],
-    )
-    .expect("Failed to drop SQLite table for Pasta!");
 
     conn.execute(
         "
         CREATE TABLE IF NOT EXISTS pasta (
             id INTEGER PRIMARY KEY,
             content TEXT NOT NULL,
+            title TEXT,
             file_name TEXT,
             file_size INTEGER,
             extension TEXT NOT NULL,
@@ -53,6 +83,7 @@ pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
             "INSERT INTO pasta (
                 id,
                 content,
+                title,
                 file_name,
                 file_size,
                 extension,
@@ -68,10 +99,11 @@ pub fn rewrite_all_to_db(pasta_data: &[Pasta]) {
                 read_count,
                 burn_after_reads,
                 pasta_type
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
             params![
                 pasta.id,
                 pasta.content,
+                pasta.title.as_deref(),
                 pasta.file.as_ref().map_or("", |f| f.name.as_str()),
                 pasta.file.as_ref().map_or(0, |f| f.size.as_u64()),
                 pasta.extension,
@@ -97,11 +129,14 @@ pub fn select_all_from_db() -> Vec<Pasta> {
     let conn = Connection::open(format!("{}/database.sqlite", ARGS.data_dir))
         .expect("Failed to open SQLite database!");
 
+    ensure_title_column(&conn);
+
     conn.execute(
         "
         CREATE TABLE IF NOT EXISTS pasta (
             id INTEGER PRIMARY KEY,
             content TEXT NOT NULL,
+            title TEXT,
             file_name TEXT,
             file_size INTEGER,
             extension TEXT NOT NULL,
@@ -130,8 +165,9 @@ pub fn select_all_from_db() -> Vec<Pasta> {
         .query_map([], |row| {
             Ok(Pasta {
                 id: row.get(0)?,
-                content: row.get(1)?,
-                file: if let (Some(file_name), Some(file_size)) = (row.get(2)?, row.get(3)?) {
+                content: row.get(2)?,
+                title: row.get(2)?,
+                file: if let (Some(file_name), Some(file_size)) = (row.get(3)?, row.get(4)?) {
                     let file_size: u64 = file_size;
                     if file_name != "" && file_size != 0 {
                         Some(PastaFile {
@@ -144,19 +180,19 @@ pub fn select_all_from_db() -> Vec<Pasta> {
                 } else {
                     None
                 },
-                extension: row.get(4)?,
-                readonly: row.get(5)?,
-                private: row.get(6)?,
-                editable: row.get(7)?,
-                encrypt_server: row.get(8)?,
-                encrypt_client: row.get(9)?,
-                encrypted_key: row.get(10)?,
-                created: row.get(11)?,
-                expiration: row.get(12)?,
-                last_read: row.get(13)?,
-                read_count: row.get(14)?,
-                burn_after_reads: row.get(15)?,
-                pasta_type: row.get(16)?,
+                extension: row.get(5)?,
+                readonly: row.get(6)?,
+                private: row.get(7)?,
+                editable: row.get(8)?,
+                encrypt_server: row.get(9)?,
+                encrypt_client: row.get(10)?,
+                encrypted_key: row.get(11)?,
+                created: row.get(12)?,
+                expiration: row.get(13)?,
+                last_read: row.get(14)?,
+                read_count: row.get(15)?,
+                burn_after_reads: row.get(16)?,
+                pasta_type: row.get(17)?,
             })
         })
         .expect("Failed to select Pastas from SQLite database.");
@@ -175,6 +211,7 @@ pub fn insert(pasta: &Pasta) {
         CREATE TABLE IF NOT EXISTS pasta (
             id INTEGER PRIMARY KEY,
             content TEXT NOT NULL,
+            title TEXT,
             file_name TEXT,
             file_size INTEGER,
             extension TEXT NOT NULL,
@@ -199,6 +236,7 @@ pub fn insert(pasta: &Pasta) {
         "INSERT INTO pasta (
                 id,
                 content,
+                title,
                 file_name,
                 file_size,
                 extension,
@@ -214,10 +252,11 @@ pub fn insert(pasta: &Pasta) {
                 read_count,
                 burn_after_reads,
                 pasta_type
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
         params![
             pasta.id,
             pasta.content,
+            pasta.title.as_deref(),
             pasta.file.as_ref().map_or("", |f| f.name.as_str()),
             pasta.file.as_ref().map_or(0, |f| f.size.as_u64()),
             pasta.extension,
@@ -245,25 +284,27 @@ pub fn update(pasta: &Pasta) {
     conn.execute(
         "UPDATE pasta SET
             content = ?2,
-            file_name = ?3,
-            file_size = ?4,
-            extension = ?5,
-            read_only = ?6,
-            private = ?7,
-            editable = ?8,
-            encrypt_server = ?9,
-            encrypt_client = ?10,
-            encrypted_key = ?11,
-            created = ?12,
-            expiration = ?13,
-            last_read = ?14,
-            read_count = ?15,
-            burn_after_reads = ?16,
-            pasta_type = ?17
+            title = ?3,
+            file_name = ?4,
+            file_size = ?5,
+            extension = ?6,
+            read_only = ?7,
+            private = ?8,
+            editable = ?9,
+            encrypt_server = ?10,
+            encrypt_client = ?11,
+            encrypted_key = ?12,
+            created = ?13,
+            expiration = ?14,
+            last_read = ?15,
+            read_count = ?16,
+            burn_after_reads = ?17,
+            pasta_type = ?18
         WHERE id = ?1;",
         params![
             pasta.id,
             pasta.content,
+            pasta.title.as_deref(),
             pasta.file.as_ref().map_or("", |f| f.name.as_str()),
             pasta.file.as_ref().map_or(0, |f| f.size.as_u64()),
             pasta.extension,
@@ -289,8 +330,7 @@ pub fn delete_by_id(id: u64) {
         .expect("Failed to open SQLite database!");
 
     conn.execute(
-        "DELETE FROM pasta 
-        WHERE id = ?1;",
+        "DELETE FROM pasta WHERE id = ?1;",
         params![id],
     )
     .expect("Failed to delete pasta.");

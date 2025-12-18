@@ -52,6 +52,12 @@
                 {%- endif %}
             </select>
         </div>
+                <label for="title">Title (optional)</label><br>
+                <input id="title" name="title" type="text" maxlength="120"
+                     placeholder="Subject / Title"
+                    style="width: 100%; margin-bottom: 1rem;">
+            </div>
+        </div>
         {% if args.enable_burn_after %}
         <div>
             <label for="burn_after">Burn After <sup> <a href="/guide#burn-after">﹖</a></sup></label><br>
@@ -408,13 +414,14 @@
         display: none;
     }
 
-    #settings {
-        display: grid;
-        grid-gap: 10px;
-        grid-template-columns: repeat(auto-fit, 152px);
-        grid-template-rows: repeat(1, 90px);
-        margin-bottom: 1rem;
-    }
+ #settings {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+#settings > div {
+  margin-bottom: 0.75rem;
+}
 
     select {
         height: 3rem;
