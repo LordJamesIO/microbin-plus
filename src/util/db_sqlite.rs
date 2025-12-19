@@ -158,43 +158,66 @@ pub fn select_all_from_db() -> Vec<Pasta> {
     .expect("Failed to create SQLite table for Pasta!");
 
     let mut stmt = conn
-        .prepare("SELECT * FROM pasta ORDER BY created ASC")
+        .prepare(
+    "SELECT
+        id,
+        content,
+        title,
+        file_name,
+        file_size,
+        extension,
+        read_only,
+        private,
+        editable,
+        encrypt_server,
+        encrypt_client,
+        encrypted_key,
+        created,
+        expiration,
+        last_read,
+        read_count,
+        burn_after_reads,
+        pasta_type
+     FROM pasta
+     ORDER BY created ASC"
+)
+
         .expect("Failed to prepare SQL statement to load pastas");
 
     let pasta_iter = stmt
-        .query_map([], |row| {
-            Ok(Pasta {
-                id: row.get(0)?,
-                content: row.get(2)?,
-                title: row.get(2)?,
-                file: if let (Some(file_name), Some(file_size)) = (row.get(3)?, row.get(4)?) {
-                    let file_size: u64 = file_size;
-                    if file_name != "" && file_size != 0 {
-                        Some(PastaFile {
-                            name: file_name,
-                            size: ByteSize::b(file_size),
-                        })
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                },
-                extension: row.get(5)?,
-                readonly: row.get(6)?,
-                private: row.get(7)?,
-                editable: row.get(8)?,
-                encrypt_server: row.get(9)?,
-                encrypt_client: row.get(10)?,
-                encrypted_key: row.get(11)?,
-                created: row.get(12)?,
-                expiration: row.get(13)?,
-                last_read: row.get(14)?,
-                read_count: row.get(15)?,
-                burn_after_reads: row.get(16)?,
-                pasta_type: row.get(17)?,
-            })
-        })
+    .query_map([], |row| {
+    let file_name: Option<String> = row.get(3)?;
+    let file_size: Option<u64> = row.get(4)?;
+
+    Ok(Pasta {
+        id: row.get(0)?,
+        content: row.get(1)?,                 // ✅ content
+        title: row.get::<_, Option<String>>(2)?, // ✅ title can be NULL safely
+
+        file: match (file_name, file_size) {
+            (Some(name), Some(size)) if !name.is_empty() && size != 0 => Some(PastaFile {
+                name,
+                size: ByteSize::b(size),
+            }),
+            _ => None,
+        },
+
+        extension: row.get(5)?,
+        readonly: row.get(6)?,
+        private: row.get(7)?,
+        editable: row.get(8)?,
+        encrypt_server: row.get(9)?,
+        encrypt_client: row.get(10)?,
+        encrypted_key: row.get(11)?,
+        created: row.get(12)?,
+        expiration: row.get(13)?,
+        last_read: row.get(14)?,
+        read_count: row.get(15)?,
+        burn_after_reads: row.get(16)?,
+        pasta_type: row.get(17)?,
+    })
+})
+
         .expect("Failed to select Pastas from SQLite database.");
 
     pasta_iter
