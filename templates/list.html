@@ -41,8 +41,13 @@
                 {% if pasta.pasta_type == "text" && !pasta.private %}
                 <tr>
                     <td>
-                        <a
-                            href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                        <a href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">
+                            {% if pasta.title.is_some() %}
+                            {{ pasta.title.as_ref().unwrap() | e }}
+                        {% else %}
+                            {{ pasta.id_as_animals() }}
+                        {% endif %}
+                        </a>
                     </td>
                     <td>
                         {% if args.public_path_as_str() != "" %}
@@ -124,8 +129,10 @@
                 {% if pasta.pasta_type == "url" && !pasta.private %}
                 <tr>
                     <td>
-                        <a
-                            href="{{ args.public_path_as_str() }}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                         <a href="{{ args.public_path_as_str()}}/upload/{{pasta.id_as_animals()}}">{{pasta.id_as_animals()}}</a>
+                         {% if pasta.title.is_some() %}
+                        <div style="opacity:0.85; font-size:0.9em;">{{ pasta.title.as_ref().unwrap() | e }}</div>
+                         {% endif %}
                     </td>
                     <td>
                         {% if args.short_path_as_str() == "" %}

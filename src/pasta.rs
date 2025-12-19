@@ -57,6 +57,7 @@ impl PastaFile {
 pub struct Pasta {
     pub id: u64,
     pub content: String,
+    pub title: Option<String>,
     pub file: Option<PastaFile>,
     pub extension: String,
     pub private: bool,
