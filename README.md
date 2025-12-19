@@ -14,6 +14,20 @@ MicroBin is a super tiny, feature-rich, configurable, self-contained and self-ho
 
 ### Or host MicroBin yourself
 
+---
+
+## Fork Notice
+
+This repository is a fork of **MicroBin** by **Dániel Szabó**  
+Original project: https://github.com/szabodanika/microbin
+
+This fork (“**microbin-plus**”) is maintained by **James Steffen** (@LordJamesIO) JamesRSteffen@gmail.com 
+and focuses on extended features, UI refinements, and practical enhancements.
+
+Edited with care, curiosity, and respect for the original work ❤️
+
+---
+
 Run our quick docker setup script ([DockerHub](https://hub.docker.com/r/danielszabo99/microbin)):
 ```bash
 bash <(curl -s https://microbin.eu/docker.sh)
@@ -75,3 +89,4 @@ You can use MicroBin:
 MicroBin and MicroBin.eu are available under the [BSD 3-Clause License](LICENSE).
 
 © Dániel Szabó 2022-2024
+@ James Steffen 2025
