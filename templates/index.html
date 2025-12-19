@@ -52,12 +52,13 @@
                 {%- endif %}
             </select>
         </div>
-                <label for="title">Title (optional)</label><br>
-                <input id="title" name="title" type="text" maxlength="120"
-                     placeholder="Subject / Title"
-                    style="width: 100%; margin-bottom: 1rem;">
-            </div>
+
+        <div>
+            <label for="title">Title (optional)</label><br>
+            <input id="title" name="title" type="text" maxlength="120" placeholder="Subject / Title"
+                style="width: 100%; margin-bottom: 1rem;">
         </div>
+
         {% if args.enable_burn_after %}
         <div>
             <label for="burn_after">Burn After <sup> <a href="/guide#burn-after">﹖</a></sup></label><br>
@@ -421,6 +422,13 @@
 
 #settings > div {
   margin-bottom: 0.75rem;
+}
+
+#settings select,
+#settings input[type="text"],
+#content-input {
+  width: 100%;
+  box-sizing: border-box;
 }
 
     select {
