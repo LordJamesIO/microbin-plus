@@ -50,22 +50,21 @@ pub async fn index_with_status(param: web::Path<String>) -> HttpResponse {
 
 pub fn expiration_to_timestamp(expiration: &str, timenow: i64) -> i64 {
     match expiration {
-        "1min" => timenow + 60,
-        "10min" => timenow + 60 * 10,
-        "1hour" => timenow + 60 * 60,
-        "24hour" => timenow + 60 * 60 * 24,
-        "3days" => timenow + 60 * 60 * 24 * 3,
-        "1week" => timenow + 60 * 60 * 24 * 7,
+        "3weeks" => timenow + 60 * 60 * 24 * 7 * 3,
+        "1month" => timenow + 60 * 60 * 24 * 30,
+        "6months" => timenow + 60 * 60 * 24 * 30 * 6,
         "never" => {
             if ARGS.eternal_pasta {
                 0
             } else {
-                timenow + 60 * 60 * 24 * 7
+                // If "never" isn't allowed, fall back to 6 months (your default bucket)
+                timenow + 60 * 60 * 24 * 30 * 6
             }
         }
         _ => {
-            log::error!("{}", "Unexpected expiration time!");
-            timenow + 60 * 60 * 24 * 7
+            log::error!("Unexpected expiration time: {}", expiration);
+            // Fallback: 6 months
+            timenow + 60 * 60 * 24 * 30 * 6
         }
     }
 }
