@@ -1,1 +1,243 @@
-nn
+# MicroBin-Plus — Installation Guide (Ubuntu)
+
+This document describes the **known-good installation path** for MicroBin-Plus.
+
+✔ Single source of configuration (systemd)  
+✔ Nginx reverse proxy on port 80  
+✔ MicroBin runs unprivileged on localhost  
+✔ Reboot-safe  
+✔ No `.env` files  
+✔ No shell exports  
+
+Tested on **Ubuntu 22.04+**
+
+---
+
+## Architecture
+
+Internet :80
+↓
+Nginx
+↓
+MicroBin-Plus (127.0.0.1:8080)
+↓
+SQLite database
+
+yaml
+Copy code
+
+---
+
+## 1. System preparation
+
+```bash
+sudo apt update
+sudo apt install -y \
+  build-essential git curl pkg-config libssl-dev ca-certificates \
+  nginx net-tools
+Optional:
+
+bash
+Copy code
+sudo apt install -y btop
+2. Install Rust (required)
+⚠️ Do not use Ubuntu’s cargo package
+Rust must be installed via rustup.
+
+bash
+Copy code
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup default stable
+rustup update
+Verify:
+
+bash
+Copy code
+rustc --version
+cargo --version
+3. Clone MicroBin-Plus
+bash
+Copy code
+mkdir -p ~/Files
+cd ~/Files
+git clone https://github.com/LordJamesIO/microbin-plus.git
+cd microbin-plus
+git checkout main
+(Optional sanity check)
+
+bash
+Copy code
+git rev-parse --short HEAD
+4. Build (release)
+bash
+Copy code
+cargo clean
+cargo build --release
+./target/release/microbin --help
+5. Create data directory
+bash
+Copy code
+mkdir -p /home/james/Files/microbin-plus/microbin_data
+sudo chown -R james:james /home/james/Files/microbin-plus/microbin_data
+⚠️ Do NOT create the database file manually
+MicroBin will create database.sqlite automatically.
+
+6. systemd service (no .env)
+Create the service file:
+
+bash
+Copy code
+sudo nano /etc/systemd/system/microbin-plus.service
+Paste exactly:
+
+ini
+Copy code
+[Unit]
+Description=MicroBin Plus
+After=network.target
+
+[Service]
+Type=simple
+User=james
+WorkingDirectory=/home/james/Files/microbin-plus
+ExecStart=/home/james/Files/microbin-plus/target/release/microbin
+Restart=on-failure
+RestartSec=2
+
+Environment=MICROBIN_PORT=8080
+Environment=MICROBIN_BIND=127.0.0.1
+Environment=MICROBIN_DATA_DIR=/home/james/Files/microbin-plus/microbin_data
+Environment=MICROBIN_DEFAULT_EXPIRY=6months
+
+Environment=MICROBIN_ENABLE_BURN_AFTER=false
+Environment=MICROBIN_PRIVATE=false
+Environment=MICROBIN_READONLY=false
+Environment=MICROBIN_ENABLE_READONLY=false
+Environment=MICROBIN_QR=false
+Environment=MICROBIN_HIGHLIGHTSYNTAX=false
+Environment=MICROBIN_ENCRYPTION_CLIENT_SIDE=false
+Environment=MICROBIN_ENCRYPTION_SERVER_SIDE=false
+
+[Install]
+WantedBy=multi-user.target
+Enable and start:
+
+bash
+Copy code
+sudo systemctl daemon-reload
+sudo systemctl enable microbin-plus
+sudo systemctl start microbin-plus
+Verify:
+
+bash
+Copy code
+systemctl status microbin-plus --no-pager
+7. Nginx reverse proxy (port 80)
+Create site config:
+
+bash
+Copy code
+sudo nano /etc/nginx/sites-available/microbin-plus
+nginx
+Copy code
+server {
+    listen 80;
+    server_name _;
+
+    client_max_body_size 50M;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_buffering off;
+    }
+}
+Enable it:
+
+bash
+Copy code
+sudo ln -s /etc/nginx/sites-available/microbin-plus /etc/nginx/sites-enabled/
+sudo rm /etc/nginx/sites-enabled/default
+Test and reload:
+
+bash
+Copy code
+sudo nginx -t
+sudo systemctl reload nginx
+8. Verification
+Ports:
+
+bash
+Copy code
+ss -ltnp | grep -E ':(80|8080)'
+Expected:
+
+nginx
+Copy code
+nginx     :80
+microbin  127.0.0.1:8080
+Binary provenance:
+
+bash
+Copy code
+pid=$(systemctl show -p MainPID --value microbin-plus)
+readlink -f /proc/$pid/exe
+9. Access
+Open in browser:
+
+cpp
+Copy code
+http://<server-ip>/
+UI should show only:
+
+Expiration
+
+Title
+
+Content
+
+File upload
+
+No additional feature toggles.
+
+Updates (production-safe)
+bash
+Copy code
+cd /home/james/Files/microbin-plus
+git pull --ff-only
+cargo build --release
+sudo systemctl restart microbin-plus
+Notes / Lessons Learned
+Avoid SELECT * — schema evolves
+
+SQLite NULLs must be handled safely
+
+systemd restart loops hide logic bugs
+
+Nginx 502 usually means backend crash
+
+Reboot tests are mandatory
+
+Status
+This installation path is known-good and reboot-stable.
+
+yaml
+Copy code
+
+---
+# --- MicroBin built-in auth ---
+Environment=MICROBIN_BASIC_AUTH_USERNAME=microbin
+Environment=MICROBIN_BASIC_AUTH_PASSWORD=SuperSecretPassword
+
+Environment=MICROBIN_ADMIN_USERNAME=admin
+Environment=MICROBIN_ADMIN_PASSWORD=ChangeMeNow
+sudo nano /etc/systemd/system/microbin-plus.service
+sudo systemctl daemon-reload
+sudo systemctl restart microbin-plus

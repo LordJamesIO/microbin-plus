@@ -17,13 +17,16 @@
                     </option>
                 </optgroup>
 
-                {% if !args.eternal_pasta %} {% if args.default_expiry ==
-                "never" %}
-                <option selected value="never">
-                    {%- else %}
-                <option value="never">{%- endif %} Never Expire
-                </option>
-                {%- endif %}
+                
+
+                {% if args.eternal_pasta %}
+                    {% if args.default_expiry == "never" %}
+                        <option selected value="never">Never Expire</option>
+                    {% else %}
+                        <option value="never">Never Expire</option>
+                    {% endif %}
+                {% endif %}
+
             </select>
         </div>
 
